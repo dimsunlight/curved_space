@@ -8,8 +8,13 @@ More functional, but still not finished, code is writtne in mesh_operations. Tha
 TODO (in order; each step has implicit debugging): 
 
 -Evaluate current triangulator and replace code that creates spurious edges where candidate neighbors. We want to make this work first, even if it's slow!
+
 -Decide whether this triangulator is really the best choice or if I should move to a different strategy -- could be a lot of rewriting
+
 -Create Fast Marching implementation once we're done writing the mesh into existence. When this works, we can start looking at implementations of larger algorithms.
+
 -Implement GTU if we can be certain that derivatives of the distances given by the algorithm are well-conditioned (i.e., errors are consistent and signs of derivatives are correct). 
+
   ->sub task for GTU -- implement point-to-all algorithm for pre-processing. This can be heat method, fast marching, improved chen and han...
+  
 -Run first MD simulations, buy a cake. 
