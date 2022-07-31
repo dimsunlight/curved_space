@@ -271,6 +271,9 @@ def testMakeTriangulation(points, height, vertexList = None, rhoTolerance=1):
       return edgeList
 
 
+'''
+Segments of code used for sampling, with density going as the inverse of curvature. 
+'''
 
 def ksFunction(dx,dy,dxx,dxy,dyy,**kwargs):
         kmin = (dxx - sqrt(dxy**2 + (dxx-dyy)**2)+dyy)/(2*sqrt(1+dx**2+dy**2))
@@ -353,3 +356,150 @@ def inverseCurvatureSampling(height,ywidth,xwidth, Ndef):
     finishedLoops += 1
 
   return jnp.transpose(jnp.array([xs,ys,zs]))
+
+
+'''
+Segments of code used to prune overlapping edges. 
+'''
+
+
+def findSlope(point1,point2):
+        #find the slope of a segment
+        slope = (point2-point1)
+        
+        #make sure slope is left-to-right in x. Points are only considered in 
+        #left-right order in segmentIntersect to ensure consistency. 
+        if slope[0] < 0:
+          slope *= -1
+        
+        return slope #no normalization to retain segment length
+
+def segmentIntersect(pointa1,pointa2,pointb1,pointb2):
+        #determine which vertex is leftward (in x) for each pair so we always 
+        #know we're walking forward along the segment. Slopes, via slope finding
+        #function, are guaranteed to be negative-to-positive in x. 
+        xa1 = pointa1[0]
+        xa2 = pointa2[0]
+        xb1 = pointb1[0]
+        xb2 = pointb2[0]
+        if xa2 < xa1: 
+          store = pointa1 
+          pointa1 = pointa2 #point 1 should always be the leftmost point in x
+          pointa2 = store
+
+        if xb2 < xb1: 
+          store = pointb1 #point 1 should always be the leftmost point in x
+          pointb1 = pointb2
+          pointb2 = store
+
+        #get components for component wise formulae -- assume 3d
+        slopea = findSlope(pointa1,pointa2)
+        slopeb= findSlope(pointb1,pointb2)
+        slopeaNorm = slopea/np.linalg.norm(slopea)
+        slopebNorm = slopeb/np.linalg.norm(slopeb)
+
+        sx1 = slopea[0]
+        sy1 = slopea[1]
+        sz1 = slopea[2]
+        
+        xa = pointa1[0]
+        ya = pointa1[1]
+        za = pointa1[2]
+
+        sx2 = slopeb[0]
+        sy2 = slopeb[1]
+        sz2 = slopeb[2]
+
+        xb = pointb1[0]
+        yb = pointb1[1]
+        zb = pointb1[2]
+
+        if (slopeaNorm==slopebNorm).all()  and ((pointa1==pointb1).all() or (pointa2 == pointb2).all()):
+          #colinearity check -- because we've organized the points left to 
+          #right, we know the the indices of the points will line up somewhere 
+          #for colinear segments
+
+          #this may fail due to numerical precision!
+          return True #technically there's an intersection + we need to delete longer edge
+
+        #alpha and beta are solutions of 2 eq. system of linear eqs:
+        # sy1*alpha + y01 = sy2*beta + y02
+        # sx1*alpha + x01 = sx2*beta + x02
+        #(underscore stands for the specific coordinate value)
+        if (sy2*sx1-sy1*sx2) == 0:
+          #print('Parallel.') #Colinearity?
+          return False
+
+        alpha = (sx2*ya - sx2*yb - sy2*xa + sy2*xb)/(sy2*sx1-sy1*sx2)
+        beta = (sx1*ya-sx1*yb - sy1*xa+sy1*xb)/(sy2*sx1-sy1*sx2)
+        
+
+        if np.isclose(sx1*alpha + xa, sx2*beta + xb,atol=1e-8):
+          #print('Intersection!')    
+          if np.sign(alpha) == np.sign(beta):
+            if (alpha < 1) and (alpha > 0) and (beta <1) and (beta > 0):
+              return True
+        
+        return False
+
+def removeExcessEdges(edges,positions,vertexList = None):
+  runningEdges = edges 
+  #all pairs of edges -- arrays can index other arrays
+  edgePositions = [np.array(list(i.getVerts())) for i in edges] 
+  edgeLengths = [i.getLength() for i in edges]
+  positionPairs = np.array([positions[i] for i in edgePositions]) #all pairs of positions - N by 2 by d 
+
+  #pruning loop - check all pairs of edges, dynamically removing from the running list
+  it1 = 0 #first iterator
+  it2 = 0 #second iterator
+  justDeleted = False
+  while it1 < len(runningEdges):
+    if justDeleted:
+      #repeat of above code when the edge list changes
+      edgePositions = [np.array(list(i.getVerts())) for i in edges]     
+      edgeLengths = [i.getLength() for i in runningEdges]
+      positionPairs = np.array([positions[i] for i in edgePositions]) 
+      justDeleted = False
+
+    theyIntersect= segmentIntersect(positionPairs[it1,0],positionPairs[it1,1],
+                                    positionPairs[it2,0],positionPairs[it2,1])
+    if theyIntersect: 
+      if it1==it2:
+        if it2 >= len(runningEdges) - 1:
+          it2 = 0 
+          it1 +=1 
+          continue
+        else: 
+          it2 += 1
+          continue
+
+      #default to remove longer edge, just for fun..
+      if edgeLengths[it1] > edgeLengths[it2]:
+        #print('Deleting edge ', edgePositions[it1])
+        justDeleted = True
+        pruningEdge = runningEdges[it1]
+        del runningEdges[it1]
+        if vertexList != None:
+           edgeVertices = np.array(list(pruningEdge.getVerts()))
+           vertexList[edgeVertices[0]].removeConnection(pruningEdge)
+           vertexList[edgeVertices[1]].removeConnection(pruningEdge)
+
+      else:
+        #print('Deleting edge ', edgePositions[it2])
+        justDeleted = True
+        pruningEdge = runningEdges[it2]
+        del runningEdges[it2]
+        if vertexList != None:
+           edgeVertices = np.array(list(pruningEdge.getVerts()))
+           vertexList[edgeVertices[0]].removeConnection(pruningEdge)
+           vertexList[edgeVertices[1]].removeConnection(pruningEdge)
+
+
+
+    if it2 >= len(runningEdges) - 1:
+      it1 += 1
+      it2 = 0 
+    else: 
+      it2 += 1
+
+  return runningEdges
