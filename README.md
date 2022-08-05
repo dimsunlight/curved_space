@@ -6,6 +6,7 @@ Currently, mesh_objects stores the older versions of the objects relevant to a t
 More functional, but still not finished, code is writtne in mesh_operations. That has the newest, though still-in-testing, version of the triangulator (testMakeTriangulation) and associated helper functions, as well as code to generate points dispersed according to surface curvature (ksFunction and inverseCurvatureSampling), and code to delete excess edges (findSlope, segmentIntersect, and removeExcessEdges). None of these are quite done and dusted yet, and, once they are, I should probably sort them into their own files for easier parsing instead of storing them in one big mesh_operations files. 
 
 TODO (in order; each step has implicit debugging): 
+-Fully repair and comprehend spherical case simulations
 
 -Evaluate current triangulator and replace code that creates spurious edges where candidate neighbors. We want to make this work first, even if it's slow!
 
