@@ -1,5 +1,3 @@
-import numpy as onp
-
 from jax.config import config ; config.update('jax_enable_x64', True)
 import jax.numpy as np
 from jax import random
@@ -8,24 +6,11 @@ from jax import lax
 from jax import vmap
 from jax import grad
 
-import time
-
 from jax_md import space, smap, energy, minimize, quantity, simulate, util
 
 f32 = util.f32
 f64 = util.f64
 Array = util.Array
-
-import matplotlib
-import matplotlib.pyplot as plt
-import seaborn as sns
-from mpl_toolkits import mplot3d
-
-from mpl_toolkits import mplot3d
-import matplotlib.animation as animation
-from mpl_toolkits import mplot3d
-from matplotlib import rc
-rc('animation', html='jshtml')
 
 def normalize(r1, Rad=1, **unused_kwargs):
   '''
@@ -72,28 +57,26 @@ def setup_sphere(Rad = 1):
         magDot = np.einsum("i,i",r1,r2)
         return abs(Rad*np.arctan2(magCross,magDot)) #Retains quadrant information
     
-    def shift_sphere_projection(r, dr, Rad = Rad, **unused_kwargs):
+    def shift_sphere_projection(r, dr, **unused_kwargs):
         '''
-        Projection operator approach similar to Daniel's work on spheres. 
-
         Allows working in the tangent space -- of course, the limitation is 
         that motion in the tangent plane is only an approximation to motion on 
-        the sphere. 
+        the sphere. Errors may arise from step sizes that are too large.
         '''
-        rhat = batch_normalize(r,Rad) #rhat and dr are both (N,d)
-        #calculation is dr_ij - r_ij (dr_ij rhat_kl) -> del(r)_ij. 
-        firststep = np.einsum('ij,kl->ijkl',rhat,dr)
-        proj_shift = dr - np.einsum('ij,ijkl->kl',rhat,firststep) #tensor contraction
+        def projection(dr,normal,**kwargs):
+            normaldotdr = np.einsum('ij,ij->i',normal,dr) #dimensions just (N,)
+            return dr - np.einsum('i,ij->ij',normaldotdr,normal) #(N,) with (N,d)
 
-        #newpos = r + proj_shift
-        newpos = r - proj_shift #FOR SOME REASON, the force function is accidentally walking us *up* the energy gradient.
-                                #Or there's something up with the shift function? This accomodates for that. 
+        rhat = batch_normalize(r,Rad) 
+
+        proj_shift = projection(dr,rhat) 
+
+        newpos = r + proj_shift 
         newpos = batch_normalize(newpos,Rad)
 
         return newpos
     
     return sphere_dist, shift_sphere_projection
-
 
 def soft_sphere_simulation_force(metric, energy, N,
                                             sigma, alpha, epsilon,Rad=1):
