@@ -68,7 +68,6 @@ def setup_sphere(Rad = 1):
             return dr - np.einsum('i,ij->ij',normaldotdr,normal) #(N,) with (N,d)
 
         rhat = batch_normalize(r,Rad) 
-
         proj_shift = projection(dr,rhat) 
 
         newpos = r + proj_shift 
