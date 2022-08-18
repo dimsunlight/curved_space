@@ -8,7 +8,7 @@ More functional, but still not finished, code is writtne in mesh_operations. Tha
 TODO (in order; each step has implicit debugging): 
 -Fully repair and comprehend spherical case simulations
 
--Evaluate current triangulator and replace code that creates spurious edges where candidate neighbors. We want to make this work first, even if it's slow!
+-Evaluate current triangulator and either create an accurate pruning algorithm to remove spurious edges or rewrite the triangulator to prevent spurious edges from ever being created in the first place. We want to make this work first, even if it's slow!
 
 -Decide whether this triangulator is really the best choice or if I should move to a different strategy -- could be a lot of rewriting
 
