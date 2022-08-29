@@ -1,16 +1,12 @@
-import numpy as onp
-
 import jax
 from jax.config import config ; config.update('jax_enable_x64', True)
 import jax.numpy as np
-from jax.numpy import cos, sin, sqrt
+from jax.numpy import arcsin, sqrt
 from jax import vmap
 from jax import grad
 from jax_md import util
-from jax_md.colab_tools import renderer
 
 f32 = util.f32
-f64 = util.f64
 
 def hav(theta):
   return (np.sin(theta/2))**2
@@ -49,7 +45,6 @@ def setup_sphere(Rad=1):
       by as much as a factor of 20.  
       '''
       #theta needs unique wrapping condition due to taking up 1/2 of 2pi space
-      start = 0
       stop = len(r[:,0])
 
       newTheta = np.array(r[:,0] + dr[:,0]) #this produces an (N, ) array - reshape later
@@ -96,10 +91,10 @@ def setup_sphere(Rad=1):
       t2 = r2[0] - np.pi/2
 
       #calculate scalar distance
-      dist = Rad*2*np.arcsin(np.sqrt( hav(t1-t2) + (1 - hav(t1-t2) - hav(t1+t2))*hav(r1[1]-r2[1])))
+      dist = Rad*2*arcsin(sqrt( hav(t1-t2) + (1 - hav(t1-t2) - hav(t1+t2))*hav(r1[1]-r2[1])))
       return dist
 
-    return disp_sphere, exp_shift_sphere, sphere_dist
+    return disp_sphere, shift_sphere, sphere_dist
  
 
 def soft_sphere_simulation_force(metric, energy_fn, Np,
@@ -112,7 +107,6 @@ def soft_sphere_simulation_force(metric, energy_fn, Np,
   gradients prior to vectorization. Piggybacks off
   of the JAX_MD definition of soft sphere energy with variables alpha,  
   epsilon, and sigma. 
-
   Inputs:
     metric: a function that returns the distance between two points in your 
       space.
@@ -129,8 +123,8 @@ def soft_sphere_simulation_force(metric, energy_fn, Np,
   '''
   
   #if these are defined within indiv_force, get NaNs out again
-  energyGrad = jax.grad(energy_fn)
-  metGrad = jax.grad(metric)
+  energyGrad = grad(energy_fn)
+  metGrad = grad(metric)
 
   def indiv_force(r1,r2):
     '''
@@ -152,9 +146,9 @@ def soft_sphere_simulation_force(metric, energy_fn, Np,
     Replicates smap's diagonal mask.
     '''
     matrix = np.nan_to_num(matrix) #change nans to zero
-    mask = f32(1.0) - np.eye(N, dtype=matrix.dtype)
+    mask = f32(1.0) - np.eye(Np, dtype=matrix.dtype)
     if len(matrix.shape) == 3:
-      mask = np.reshape(mask, (N, N, 1))
+      mask = np.reshape(mask, (Np, Np, 1))
     return mask*matrix 
 
   def sum_rows(matrix):
@@ -170,4 +164,3 @@ def soft_sphere_simulation_force(metric, energy_fn, Np,
     return sum_rows(forceMat)
   
   return pairwise_forces
-  
