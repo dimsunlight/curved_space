@@ -1,16 +1,11 @@
 from jax.config import config ; config.update('jax_enable_x64', True)
 import jax.numpy as np
-from jax import random
-from jax import jit
-from jax import lax
 from jax import vmap
 from jax import grad
 
-from jax_md import space, smap, energy, minimize, quantity, simulate, util
+from jax_md import util
 
 f32 = util.f32
-f64 = util.f64
-Array = util.Array
 
 def normalize(r1, Rad=1, **unused_kwargs):
   '''
@@ -45,7 +40,6 @@ def setup_sphere(Rad = 1):
         r1 : position in cartesian coordinates of first particle
         r2 : position in cartesian coordinates of second particle
         Rad : radius of underlying spherical geometry
-
         note: currently using most globally well-conditioned expression
         for finding the angle between two spherical points, not the most
         efficient.
@@ -83,7 +77,6 @@ def soft_sphere_simulation_force(metric, energy, N,
   Initializes the force function for a soft sphere simulation. Piggybacks off
   of the JAX_MD definition of soft sphere energy with variables alpha,  
   epsilon, and sigma. 
-
   Inputs:
     metric: a function that returns the distance between two points in your 
       space.
@@ -118,7 +111,6 @@ def soft_sphere_simulation_force(metric, energy, N,
     '''
     Right now, I'm using jax.numpy.nan_to_num because it should save computation time.
     So far, it doesn't seem to break, but I'm still suspicious.
-
     Also, big assumption here that diagonal elements are actually NaNs...
     '''
     matrix = np.nan_to_num(matrix) #changes nans to zero 
