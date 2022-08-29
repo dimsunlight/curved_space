@@ -4,45 +4,13 @@ import jax
 from jax.config import config ; config.update('jax_enable_x64', True)
 import jax.numpy as np
 from jax.numpy import cos, sin, sqrt
-from jax import random
-from jax import jit
-from jax import lax
 from jax import vmap
 from jax import grad
 from jax_md import util
 from jax_md.colab_tools import renderer
 
-import time
-
-from jax_md import space, smap, energy, minimize, quantity, simulate
-
-import matplotlib
-import matplotlib.pyplot as plt
-import seaborn as sns
-
-from mpl_toolkits import mplot3d
-import matplotlib.animation as animation
-from mpl_toolkits import mplot3d
-from matplotlib import rc
-rc('animation', html='jshtml')
-
-import statistics as stat
-
 f32 = util.f32
 f64 = util.f64
-Array = util.Array
-
-sns.set_style(style='white')
-
-def format_plot(x, y):  
-  plt.xlabel(x, fontsize=20)
-  plt.ylabel(y, fontsize=20)
-  
-def finalize_plot(shape=(1, 1)):
-  plt.gcf().set_size_inches(
-    shape[0] * 1.5 * plt.gcf().get_size_inches()[1], 
-    shape[1] * 1.5 * plt.gcf().get_size_inches()[1])
-  plt.tight_layout()
 
 def hav(theta):
   return (np.sin(theta/2))**2
@@ -77,8 +45,8 @@ def setup_sphere(Rad=1):
       '''
       Shift function enforcing spherical boundary conditions through the inclusion of
       Heaviside step functions. Because we avoid the use of conditionals, this shift 
-      function can be compiled using jit -- which in tests has reduced the time of 
-      running code by as much as 20 times. 
+      function can be compiled using jit -- which in tests has reduced compilation time
+      by as much as a factor of 20.  
       '''
       #theta needs unique wrapping condition due to taking up 1/2 of 2pi space
       start = 0
@@ -181,12 +149,9 @@ def soft_sphere_simulation_force(metric, energy_fn, Np,
 
   def remove_diag(matrix):
     '''
-    Right now, I'm using jax.numpy.nan_to_num because it should save computation time.
-    So far, it doesn't seem to break, but I'm still suspicious.
-
-    Otherwise replicates smap's diagonal mask.
+    Replicates smap's diagonal mask.
     '''
-    matrix = np.nan_to_num(matrix) #changes nans to zero
+    matrix = np.nan_to_num(matrix) #change nans to zero
     mask = f32(1.0) - np.eye(N, dtype=matrix.dtype)
     if len(matrix.shape) == 3:
       mask = np.reshape(mask, (N, N, 1))
